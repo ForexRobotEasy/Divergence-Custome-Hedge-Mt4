@@ -1,0 +1,101 @@
+
+//+------------------------------------------------------------------+
+//|                                                         |
+//|             Divergence Custome Hedge Mt4                |
+//|                                                        |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//|                                                         |
+//+------------------------------------------------------------------+
+
+// Developer's site: forexroboteasy.com
+// Development: Forex Robot Easy Team
+
+// Include necessary libraries and define constants
+#include <Trade\Trade.mqh>
+#include <MovingAverages\MACD.mqh>
+
+#define LOT_SIZE 0.01
+#define SLIPPAGE 3
+#define MAX_LOSS_PIPS 10
+
+// Initialize global variables
+CTrade trade;
+CMACD macd;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Initialize MACD indicator
+    macd.Init(Symbol(), PERIOD_H1, 12, 26, 9, PRICE_CLOSE);
+
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Cleanup resources
+    macd.Deinit();
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Check for buy signal
+    if(macd.SignalMainCrossUp())
+    {
+        // Open buy order
+        trade.Buy(LOT_SIZE, Symbol(), Ask, SLIPPAGE);
+    }
+    
+    // Check for sell signal
+    if(macd.SignalMainCrossDown())
+    {
+        // Open sell order
+        trade.Sell(LOT_SIZE, Symbol(), Bid, SLIPPAGE);
+    }
+    
+    // Check for open positions
+    if(trade.PositionsTotal() > 0)
+    {
+        // Get the last position
+        CPosition position;
+        trade.PositionGetByIndex(trade.PositionsTotal() - 1, position);
+        
+        // Check if the market moved against the trade
+        if(position.Type() == POSITION_TYPE_BUY && position.Profit() < -MAX_LOSS_PIPS * Point())
+        {
+            // Open sell order to hedge
+            trade.Sell(LOT_SIZE, Symbol(), Bid, SLIPPAGE);
+        }
+        
+        // Check if the market moved against the trade
+        if(position.Type() == POSITION_TYPE_SELL && position.Profit() < -MAX_LOSS_PIPS * Point())
+        {
+            // Open buy order to hedge
+            trade.Buy(LOT_SIZE, Symbol(), Ask, SLIPPAGE);
+        }
+    }
+}
